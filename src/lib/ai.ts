@@ -1,3 +1,5 @@
+import OpenAI from "openai";
+
 export interface ESGData {
   companyName: string;
   industry: string;
@@ -50,27 +52,25 @@ IMPORTANT: Your response must be valid JSON matching this exact structure:
 
 Base your analysis on industry standards, available data, and ESG best practices. Be specific and actionable.`;
 
-export async function generateESGReport(data: ESGData): Promise<ESGReport> {
-  const apiKey = process.env.OPENROUTER_API_KEY || process.env.GROK_API_KEY;
+// Initialize OpenAI client with Emergent Universal Key
+const getOpenAIClient = () => {
+  const apiKey = process.env.EMERGENT_LLM_KEY;
   
   if (!apiKey) {
-    throw new Error("No AI API key configured");
+    throw new Error("EMERGENT_LLM_KEY is not configured");
   }
 
-  const isOpenRouter = !!process.env.OPENROUTER_API_KEY;
-  const endpoint = isOpenRouter
-    ? "https://openrouter.ai/api/v1/chat/completions"
-    : "https://api.x.ai/v1/chat/completions";
+  return new OpenAI({
+    apiKey,
+  });
+};
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-      ...(isOpenRouter && { "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL }),
-    },
-    body: JSON.stringify({
-      model: isOpenRouter ? "x-ai/grok-2-1212" : "grok-2-latest",
+export async function generateESGReport(data: ESGData): Promise<ESGReport> {
+  try {
+    const openai = getOpenAIClient();
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
       messages: [
         { role: "system", content: ESG_PROMPT },
         {
@@ -80,29 +80,24 @@ export async function generateESGReport(data: ESGData): Promise<ESGReport> {
       ],
       temperature: 0.7,
       max_tokens: 2000,
-    }),
-  });
+      response_format: { type: "json_object" },
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`AI API error: ${error}`);
+    const content = completion.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new Error("No response from AI");
+    }
+
+    // Parse JSON response
+    const report = JSON.parse(content) as ESGReport;
+    report.generatedAt = new Date().toISOString();
+
+    return report;
+  } catch (error) {
+    console.error("ESG Report generation error:", error);
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to generate ESG report"
+    );
   }
-
-  const result = await response.json();
-  const content = result.choices[0]?.message?.content;
-
-  if (!content) {
-    throw new Error("No response from AI");
-  }
-
-  // Parse JSON from response
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("Invalid AI response format");
-  }
-
-  const report = JSON.parse(jsonMatch[0]) as ESGReport;
-  report.generatedAt = new Date().toISOString();
-
-  return report;
 }
