@@ -20,7 +20,7 @@ AI-powered ESG (Environmental, Social, Governance) compliance reports for solopr
 - **Database:** Supabase (PostgreSQL)
 - **Auth:** Supabase Auth
 - **Payments:** Stripe
-- **AI:** OpenRouter (Grok 2) or direct Grok API
+- **AI:** OpenAI GPT-4o (via Emergent Universal Key)
 - **Deployment:** Vercel
 
 ## Quick Start
