@@ -1,9 +1,19 @@
 import Stripe from "stripe";
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-06-20",
-  typescript: true,
-});
+function getStripeClient(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error("STRIPE_SECRET_KEY is not configured");
+  }
+  return new Stripe(key, {
+    apiVersion: "2024-06-20",
+    typescript: true,
+  });
+}
+
+export const stripe = typeof window === "undefined" && process.env.STRIPE_SECRET_KEY 
+  ? getStripeClient() 
+  : (null as unknown as Stripe);
 
 export const PLANS = {
   starter: {
@@ -17,8 +27,8 @@ export const PLANS = {
     ],
     monthlyPrice: 19,
     annualPrice: 190,
-    monthlyPriceId: process.env.STRIPE_STARTER_MONTHLY_PRICE_ID!,
-    annualPriceId: process.env.STRIPE_STARTER_ANNUAL_PRICE_ID!,
+    monthlyPriceId: process.env.STRIPE_STARTER_MONTHLY_PRICE_ID || "",
+    annualPriceId: process.env.STRIPE_STARTER_ANNUAL_PRICE_ID || "",
   },
   pro: {
     name: "Pro",
@@ -33,8 +43,8 @@ export const PLANS = {
     ],
     monthlyPrice: 49,
     annualPrice: 490,
-    monthlyPriceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID!,
-    annualPriceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID!,
+    monthlyPriceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID || "",
+    annualPriceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID || "",
   },
 } as const;
 
