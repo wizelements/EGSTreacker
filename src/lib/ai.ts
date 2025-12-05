@@ -53,6 +53,7 @@ IMPORTANT: Your response must be valid JSON matching this exact structure:
 Base your analysis on industry standards, available data, and ESG best practices. Be specific and actionable.`;
 
 // Initialize OpenAI client with Emergent Universal Key
+// The Emergent Universal Key works through the integration proxy
 const getOpenAIClient = () => {
   const apiKey = process.env.EMERGENT_LLM_KEY;
   
@@ -60,8 +61,12 @@ const getOpenAIClient = () => {
     throw new Error("EMERGENT_LLM_KEY is not configured");
   }
 
+  // Use the Emergent Integration Proxy URL for universal key support
+  const baseURL = "https://integrations.emergentagent.com/v1";
+
   return new OpenAI({
     apiKey,
+    baseURL,
   });
 };
 
