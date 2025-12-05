@@ -1,5 +1,3 @@
-import OpenAI from "openai";
-
 export interface ESGData {
   companyName: string;
   industry: string;
@@ -52,27 +50,50 @@ IMPORTANT: Your response must be valid JSON matching this exact structure:
 
 Base your analysis on industry standards, available data, and ESG best practices. Be specific and actionable.`;
 
-// Initialize OpenAI client with Emergent Universal Key
-const getOpenAIClient = () => {
-  const apiKey = process.env.EMERGENT_LLM_KEY;
-  
-  if (!apiKey) {
-    throw new Error("EMERGENT_LLM_KEY is not configured. Please set it in your .env file.");
+type AIProvider = "openai" | "openrouter" | "anthropic";
+
+function getProviderConfig(): { provider: AIProvider; apiKey: string; model: string } {
+  // Check for OpenAI key first
+  if (process.env.OPENAI_API_KEY) {
+    return {
+      provider: "openai",
+      apiKey: process.env.OPENAI_API_KEY,
+      model: "gpt-4o",
+    };
   }
 
-  // Use standard OpenAI endpoint
-  // The Emergent Universal Key is configured to work with OpenAI models
-  return new OpenAI({
-    apiKey,
-  });
-};
+  // Check for OpenRouter key
+  if (process.env.OPENROUTER_API_KEY) {
+    return {
+      provider: "openrouter",
+      apiKey: process.env.OPENROUTER_API_KEY,
+      model: "openai/gpt-4o",
+    };
+  }
 
-export async function generateESGReport(data: ESGData): Promise<ESGReport> {
-  try {
-    const openai = getOpenAIClient();
+  // Check for Anthropic key
+  if (process.env.ANTHROPIC_API_KEY) {
+    return {
+      provider: "anthropic",
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      model: "claude-3-5-sonnet-20241022",
+    };
+  }
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+  throw new Error(
+    "No AI API key configured. Please set OPENAI_API_KEY, OPENROUTER_API_KEY, or ANTHROPIC_API_KEY in your environment variables."
+  );
+}
+
+async function callOpenAI(apiKey: string, model: string, data: ESGData): Promise<string> {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
       messages: [
         { role: "system", content: ESG_PROMPT },
         {
@@ -83,32 +104,119 @@ export async function generateESGReport(data: ESGData): Promise<ESGReport> {
       temperature: 0.7,
       max_tokens: 2000,
       response_format: { type: "json_object" },
-    });
+    }),
+  });
 
-    const content = completion.choices[0]?.message?.content;
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`OpenAI API error: ${error}`);
+  }
+
+  const result = await response.json();
+  return result.choices[0]?.message?.content || "";
+}
+
+async function callOpenRouter(apiKey: string, model: string, data: ESGData): Promise<string> {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+      "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: ESG_PROMPT },
+        {
+          role: "user",
+          content: `Generate an ESG report for this company:\n${JSON.stringify(data, null, 2)}`,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`OpenRouter API error: ${error}`);
+  }
+
+  const result = await response.json();
+  return result.choices[0]?.message?.content || "";
+}
+
+async function callAnthropic(apiKey: string, model: string, data: ESGData): Promise<string> {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 2000,
+      system: ESG_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: `Generate an ESG report for this company:\n${JSON.stringify(data, null, 2)}`,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Anthropic API error: ${error}`);
+  }
+
+  const result = await response.json();
+  return result.content[0]?.text || "";
+}
+
+export async function generateESGReport(data: ESGData): Promise<ESGReport> {
+  try {
+    const config = getProviderConfig();
+    let content: string;
+
+    switch (config.provider) {
+      case "openai":
+        content = await callOpenAI(config.apiKey, config.model, data);
+        break;
+      case "openrouter":
+        content = await callOpenRouter(config.apiKey, config.model, data);
+        break;
+      case "anthropic":
+        content = await callAnthropic(config.apiKey, config.model, data);
+        break;
+      default:
+        throw new Error("Unknown AI provider");
+    }
 
     if (!content) {
       throw new Error("No response from AI");
     }
 
-    // Parse JSON response
-    const report = JSON.parse(content) as ESGReport;
+    // Parse JSON from response (handle potential markdown wrapping)
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Invalid AI response format - no JSON found");
+    }
+
+    const report = JSON.parse(jsonMatch[0]) as ESGReport;
     report.generatedAt = new Date().toISOString();
 
     return report;
   } catch (error) {
     console.error("ESG Report generation error:", error);
-    
-    // Provide helpful error messages
+
     if (error instanceof Error) {
-      if (error.message.includes("API key")) {
-        throw new Error(
-          "Invalid or missing EMERGENT_LLM_KEY. Please check your environment configuration."
-        );
-      }
       throw new Error(error.message);
     }
-    
+
     throw new Error("Failed to generate ESG report. Please try again.");
   }
 }
