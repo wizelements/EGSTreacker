@@ -53,20 +53,17 @@ IMPORTANT: Your response must be valid JSON matching this exact structure:
 Base your analysis on industry standards, available data, and ESG best practices. Be specific and actionable.`;
 
 // Initialize OpenAI client with Emergent Universal Key
-// The Emergent Universal Key works through the integration proxy
 const getOpenAIClient = () => {
   const apiKey = process.env.EMERGENT_LLM_KEY;
   
   if (!apiKey) {
-    throw new Error("EMERGENT_LLM_KEY is not configured");
+    throw new Error("EMERGENT_LLM_KEY is not configured. Please set it in your .env file.");
   }
 
-  // Use the Emergent Integration Proxy URL for universal key support
-  const baseURL = "https://integrations.emergentagent.com/v1";
-
+  // Use standard OpenAI endpoint
+  // The Emergent Universal Key is configured to work with OpenAI models
   return new OpenAI({
     apiKey,
-    baseURL,
   });
 };
 
@@ -101,8 +98,17 @@ export async function generateESGReport(data: ESGData): Promise<ESGReport> {
     return report;
   } catch (error) {
     console.error("ESG Report generation error:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to generate ESG report"
-    );
+    
+    // Provide helpful error messages
+    if (error instanceof Error) {
+      if (error.message.includes("API key")) {
+        throw new Error(
+          "Invalid or missing EMERGENT_LLM_KEY. Please check your environment configuration."
+        );
+      }
+      throw new Error(error.message);
+    }
+    
+    throw new Error("Failed to generate ESG report. Please try again.");
   }
 }
