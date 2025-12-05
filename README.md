@@ -5,7 +5,7 @@ AI-powered ESG (Environmental, Social, Governance) compliance reports for solopr
 ## Features
 
 - 🚀 Generate audit-ready ESG reports in under 3 minutes
-- 🤖 AI-powered analysis using Grok/OpenRouter
+- 🤖 AI-powered analysis using GPT-4o (via Emergent Universal Key)
 - 📄 Professional PDF exports
 - 💳 Stripe subscription billing ($19/mo Starter, $49/mo Pro)
 - 🔐 Supabase authentication (Email + Google OAuth)
