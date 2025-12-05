@@ -21,7 +21,14 @@ async function testESGGeneration() {
     console.log('✅ Emergent LLM Key found');
     console.log(`   Key: ${apiKey.substring(0, 20)}...`);
 
-    const openai = new OpenAI({ apiKey });
+    // Use the Emergent Integration Proxy URL
+    const baseURL = "https://integrations.emergentagent.com/v1";
+    console.log(`   Proxy: ${baseURL}`);
+
+    const openai = new OpenAI({ 
+      apiKey,
+      baseURL
+    });
 
     // Test data for ESG report generation
     const testData = {
