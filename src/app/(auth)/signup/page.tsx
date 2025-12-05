@@ -29,6 +29,16 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
 
+    if (!supabase) {
+      toast({
+        title: "Configuration Error",
+        description: "Authentication is not configured. Please try again later.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -58,6 +68,15 @@ export default function SignupPage() {
   };
 
   const handleGoogleSignup = async () => {
+    if (!supabase) {
+      toast({
+        title: "Configuration Error",
+        description: "Authentication is not configured. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

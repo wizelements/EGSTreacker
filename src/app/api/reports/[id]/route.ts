@@ -7,6 +7,11 @@ export async function GET(
 ) {
   const { id } = await params;
   const supabase = await createClient();
+  
+  if (!supabase) {
+    return NextResponse.json({ message: "Service temporarily unavailable" }, { status: 503 });
+  }
+
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

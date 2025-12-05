@@ -3,10 +3,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 let client: SupabaseClient | null = null;
 
-export function createClient(): SupabaseClient {
+export function createClient(): SupabaseClient | null {
   if (typeof window === "undefined") {
-    // Return a dummy client during SSR/build - won't be used
-    return {} as SupabaseClient;
+    return null;
   }
   
   if (client) return client;
@@ -15,7 +14,8 @@ export function createClient(): SupabaseClient {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   
   if (!url || !key) {
-    throw new Error("Missing Supabase environment variables");
+    console.warn("Supabase environment variables not configured");
+    return null;
   }
   
   client = createBrowserClient(url, key);

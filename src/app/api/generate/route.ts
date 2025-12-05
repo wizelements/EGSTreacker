@@ -14,10 +14,10 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = supabase ? (await supabase.auth.getUser()).data.user : null;
 
     // Check if user has report quota (if logged in)
-    if (user) {
+    if (user && supabase) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("subscription_status, reports_used_this_month")
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
     // Store the report if user is logged in
     let reportId: string | null = null;
-    if (user) {
+    if (user && supabase) {
       const { data: savedReport, error } = await supabase
         .from("esg_reports")
         .insert({

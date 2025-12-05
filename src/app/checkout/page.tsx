@@ -28,6 +28,10 @@ function CheckoutContent() {
   useEffect(() => {
     const checkAuth = async () => {
       const supabase = createClient();
+      if (!supabase) {
+        setIsAuthenticated(false);
+        return;
+      }
       const { data: { user } } = await supabase.auth.getUser();
       setIsAuthenticated(!!user);
     };

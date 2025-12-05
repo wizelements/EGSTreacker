@@ -14,6 +14,14 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
+    
+    if (!supabase) {
+      return NextResponse.json(
+        { message: "Service temporarily unavailable" },
+        { status: 503 }
+      );
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
